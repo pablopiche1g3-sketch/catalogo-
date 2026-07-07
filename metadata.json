@@ -1,0 +1,6 @@
+{
+  "name": "Catálogo Tecnicolor",
+  "description": "Catálogo digital de productos fuera de línea con carga de imágenes y soporte offline para vendedores de Pinturas Tecnicolor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
