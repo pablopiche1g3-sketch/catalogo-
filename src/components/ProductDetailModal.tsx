@@ -171,8 +171,8 @@ export default function ProductDetailModal({ product, onClose }: ProductDetailMo
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Precio de Venta al Público</span>
                 <div className="flex items-baseline text-blue-700 font-bold font-display mt-0.5">
                   <span className="text-xl font-medium">$</span>
-                  <span className="text-4xl">{product.price.toFixed(2).split('.')[0]}</span>
-                  <span className="text-2xl">.{product.price.toFixed(2).split('.')[1]}</span>
+                  <span className="text-4xl">{(product.price || 0).toFixed(2).split('.')[0]}</span>
+                  <span className="text-2xl">.{(product.price || 0).toFixed(2).split('.')[1]}</span>
                   <span className="text-xs font-bold text-slate-400 ml-2 uppercase tracking-wider">USD</span>
                 </div>
               </div>

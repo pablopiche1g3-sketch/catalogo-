@@ -116,7 +116,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
         {/* Pricing Zone */}
         <div className="mt-auto pt-3 border-t border-slate-100 w-full flex flex-col items-center">
           <span className="text-2xl font-black text-blue-700 font-display">
-            ${product.price.toFixed(2)}
+            ${(product.price || 0).toFixed(2)}
           </span>
           <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
             Precio Unitario Público

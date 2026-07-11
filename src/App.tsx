@@ -63,17 +63,18 @@ export default function App() {
   };
 
   // Extract all unique categories present in the products list
-  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
+  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category || 'Sin Categoría')))];
 
   // Filtering Logic with Debounce (Deferred Value) and Memoization for Performance
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
+      const q = (deferredSearchQuery || '').toLowerCase();
       const matchesSearch = 
-        p.name.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
-        p.code.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
-        p.category.toLowerCase().includes(deferredSearchQuery.toLowerCase());
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.code || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q);
       
-      const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'Todos' || (p.category || 'Sin Categoría') === selectedCategory;
 
       return matchesSearch && matchesCategory;
     });

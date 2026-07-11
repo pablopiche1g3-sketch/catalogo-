@@ -34,14 +34,15 @@ export default function AdminPanel({ products, onDeleteProduct, onAddProduct }: 
   const excelFileInputRef = useRef<HTMLInputElement>(null);
 
   // Extract unique categories for the form
-  const categories = Array.from(new Set(['Todos', 'Pinturas', 'Esmaltes y Barnices', 'Herramientas', 'Accesorios y Aplicadores', 'Ferretería General', ...products.map(p => p.category)]));
+  const categories = Array.from(new Set(['Todos', 'Pinturas', 'Esmaltes y Barnices', 'Herramientas', 'Accesorios y Aplicadores', 'Ferretería General', ...products.map(p => p.category || 'Sin Categoría')]));
 
   // Filter products for the admin list
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const term = (searchTerm || '').toLowerCase();
+    return (p.name || '').toLowerCase().includes(term) || 
+           (p.code || '').toLowerCase().includes(term) ||
+           (p.category || '').toLowerCase().includes(term);
+  });
 
   // Import Excel file to DB
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,7 +291,7 @@ export default function AdminPanel({ products, onDeleteProduct, onAddProduct }: 
                     <div className="text-right flex-shrink-0 flex flex-col justify-center">
                       <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 leading-none">Público</span>
                       <span className="text-sm sm:text-base font-extrabold font-display text-blue-700">
-                        ${p.price.toFixed(2)}
+                        ${(p.price || 0).toFixed(2)}
                       </span>
                     </div>
 
