@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { collection, doc, setDoc, deleteDoc, writeBatch, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { db as firestoreDb } from './firebase';
+
 export interface Product {
   id: string;
   code: string;
@@ -16,9 +19,7 @@ export interface Product {
   createdAt: number;
 }
 
-const DB_NAME = 'TecnicolorCatalogDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'products';
+const COLLECTION_NAME = 'products';
 
 // Preloaded default catalog of Pinturas Tecnicolor
 export const PRELOADED_PRODUCTS: Product[] = [
@@ -145,125 +146,77 @@ export const PRELOADED_PRODUCTS: Product[] = [
   }
 ];
 
-export function initDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onerror = () => {
-      reject(request.error);
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onupgradeneeded = (event) => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-      }
-    };
-  });
-}
-
-export function getAllProducts(): Promise<Product[]> {
-  return initDB().then((db) => {
-    return new Promise<Product[]>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readonly');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.getAll();
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        const list = request.result || [];
-        if (list.length === 0) {
-          // If completely empty, we seed the default products to make the catalog instant!
-          seedDefaultProducts(db)
-            .then((seeded) => resolve(seeded))
-            .catch(() => resolve([]));
-        } else {
-          resolve(list);
-        }
-      };
+// Subscribe to real-time updates
+export function subscribeToProducts(callback: (products: Product[]) => void): () => void {
+  const q = query(collection(firestoreDb, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const products: Product[] = [];
+    snapshot.forEach((doc) => {
+      products.push(doc.data() as Product);
     });
-  });
-}
-
-function seedDefaultProducts(db: IDBDatabase): Promise<Product[]> {
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
     
-    PRELOADED_PRODUCTS.forEach((product) => {
-      store.put(product);
-    });
-
-    transaction.oncomplete = () => {
-      resolve(PRELOADED_PRODUCTS);
-    };
-
-    transaction.onerror = () => {
-      reject(transaction.error);
-    };
+    // Si la base de datos está completamente vacía (y no solo cargando cache), poblamos por defecto
+    if (products.length === 0 && !snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+      seedDefaultProducts().catch(console.error);
+    }
+    
+    callback(products);
+  }, (error) => {
+    console.error("Error suscribiendose a productos:", error);
   });
 }
 
-export function addProduct(product: Product): Promise<void> {
-  return initDB().then((db) => {
-    return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(product);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
-  });
+// Fallback promise function if needed
+export async function getAllProducts(): Promise<Product[]> {
+  const q = query(collection(firestoreDb, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  const products: Product[] = [];
+  snapshot.forEach((doc) => products.push(doc.data() as Product));
+  return products;
 }
 
-export function deleteProduct(id: string): Promise<void> {
-  return initDB().then((db) => {
-    return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.delete(id);
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
+export async function seedDefaultProducts(): Promise<void> {
+  const batch = writeBatch(firestoreDb);
+  PRELOADED_PRODUCTS.forEach((product) => {
+    const docRef = doc(collection(firestoreDb, COLLECTION_NAME), product.id);
+    batch.set(docRef, product);
   });
+  await batch.commit();
 }
 
-export function clearAllProducts(): Promise<void> {
-  return initDB().then((db) => {
-    return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.clear();
-
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve();
-    });
-  });
+export async function addProduct(product: Product): Promise<void> {
+  const docRef = doc(collection(firestoreDb, COLLECTION_NAME), product.id);
+  await setDoc(docRef, product);
 }
 
-export function importProducts(products: Product[]): Promise<void> {
-  return initDB().then((db) => {
-    return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction(STORE_NAME, 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      
-      products.forEach((product) => {
-        store.put(product);
-      });
+export async function deleteProduct(id: string): Promise<void> {
+  const docRef = doc(collection(firestoreDb, COLLECTION_NAME), id);
+  await deleteDoc(docRef);
+}
 
-      transaction.oncomplete = () => {
-        resolve();
-      };
-
-      transaction.onerror = () => {
-        reject(transaction.error);
-      };
-    });
+export async function clearAllProducts(): Promise<void> {
+  const snapshot = await getDocs(collection(firestoreDb, COLLECTION_NAME));
+  const batch = writeBatch(firestoreDb);
+  snapshot.forEach((docSnapshot) => {
+    batch.delete(docSnapshot.ref);
   });
+  await batch.commit();
+}
+
+export async function importProducts(products: Product[]): Promise<void> {
+  // Firestore limit is 500 operations per batch
+  const chunks = [];
+  for (let i = 0; i < products.length; i += 500) {
+    chunks.push(products.slice(i, i + 500));
+  }
+  
+  for (const chunk of chunks) {
+    const batch = writeBatch(firestoreDb);
+    chunk.forEach((product) => {
+      const docRef = doc(collection(firestoreDb, COLLECTION_NAME), product.id);
+      batch.set(docRef, product);
+    });
+    await batch.commit();
+  }
 }

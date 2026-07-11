@@ -23,12 +23,11 @@ import {
 
 interface AdminPanelProps {
   products: Product[];
-  onRefresh: () => void;
   onDeleteProduct: (id: string) => void;
   onAddProduct: (product: Product) => void;
 }
 
-export default function AdminPanel({ products, onRefresh, onDeleteProduct, onAddProduct }: AdminPanelProps) {
+export default function AdminPanel({ products, onDeleteProduct, onAddProduct }: AdminPanelProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -101,7 +100,6 @@ export default function AdminPanel({ products, onRefresh, onDeleteProduct, onAdd
           await importProducts(newProducts);
           setImportSuccess(`¡Se importaron ${newProducts.length} productos correctamente!`);
           setImportError(null);
-          onRefresh();
           
           if (excelFileInputRef.current) excelFileInputRef.current.value = '';
           setTimeout(() => setImportSuccess(null), 5000);
@@ -120,8 +118,7 @@ export default function AdminPanel({ products, onRefresh, onDeleteProduct, onAdd
     if (confirm("¿Está seguro de que desea REINICIAR el catálogo? Esto borrará TODOS los productos cargados actualmente y restaurará la lista de Pinturas Tecnicolor predeterminada.")) {
       await clearAllProducts();
       // Importing the default preloaded products is handled automatically by the DB when requested empty
-      onRefresh();
-      alert("Catálogo reiniciado con éxito.");
+      alert("Catálogo reiniciado con éxito. Se cargarán los datos por defecto en un momento.");
     }
   };
 
@@ -131,7 +128,6 @@ export default function AdminPanel({ products, onRefresh, onDeleteProduct, onAdd
       await clearAllProducts();
       // Since our IndexedDB automatically seeds if empty on next load, we will write an empty list or just reload. Wait, let's just clear. 
       // Actually we will let them clear it. If they want it blank, that's fine.
-      onRefresh();
       alert("Catálogo vaciado completamente.");
     }
   };

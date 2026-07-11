@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
-import { Product, getAllProducts, addProduct, deleteProduct } from './db';
+import { useState, useEffect, useDeferredValue, useMemo } from 'react';
+import { Product, subscribeToProducts, addProduct, deleteProduct } from './db';
 import Header from './components/Header';
 import ProductCard from './components/ProductCard';
 import ProductDetailModal from './components/ProductDetailModal';
@@ -28,31 +28,25 @@ export default function App() {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load products from IndexedDB on mount
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  const loadProducts = async () => {
+  // Load products via Realtime Subscription on mount
+  useEffect(() => {
     setIsLoading(true);
-    try {
-      const data = await getAllProducts();
+    const unsubscribe = subscribeToProducts((data) => {
       setProducts(data);
-    } catch (err) {
-      console.error("Error cargando productos de IndexedDB:", err);
-    } finally {
       setIsLoading(false);
-    }
-  };
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleAddProduct = async (newProduct: Product) => {
     try {
       await addProduct(newProduct);
-      // Refresh state
-      setProducts(prev => [newProduct, ...prev]);
+      // State is updated automatically by subscribeToProducts!
     } catch (err) {
       console.error("Error al guardar producto:", err);
-      alert("Hubo un error al guardar el producto en IndexedDB.");
+      alert("Hubo un error al guardar el producto en la nube.");
     }
   };
 
@@ -60,11 +54,10 @@ export default function App() {
     if (confirm("¿Está seguro de que desea eliminar este producto del catálogo?")) {
       try {
         await deleteProduct(id);
-        // Refresh state
-        setProducts(prev => prev.filter(p => p.id !== id));
+        // State is updated automatically by subscribeToProducts!
       } catch (err) {
         console.error("Error al eliminar producto:", err);
-        alert("Hubo un error al eliminar el producto de IndexedDB.");
+        alert("Hubo un error al eliminar el producto de la nube.");
       }
     }
   };
@@ -72,17 +65,19 @@ export default function App() {
   // Extract all unique categories present in the products list
   const categories = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
 
-  // Filtering Logic
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = 
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
+  // Filtering Logic with Debounce (Deferred Value) and Memoization for Performance
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      const matchesSearch = 
+        p.name.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
+        p.code.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
+        p.category.toLowerCase().includes(deferredSearchQuery.toLowerCase());
+      
+      const matchesCategory = selectedCategory === 'Todos' || p.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
-  });
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, deferredSearchQuery, selectedCategory]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-blue-600/10 selection:text-blue-700">
@@ -105,7 +100,6 @@ export default function App() {
           /* Admin / Management Panel */
           <AdminPanel 
             products={products} 
-            onRefresh={loadProducts} 
             onDeleteProduct={handleDeleteProduct} 
             onAddProduct={handleAddProduct} 
           />
@@ -185,17 +179,17 @@ export default function App() {
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
                   <h3 className="text-[10px] font-bold tracking-widest uppercase text-emerald-400">
-                    Sincronización Local OK
+                    Sincronización Cloud OK
                   </h3>
                 </div>
                 
                 <p className="text-xs font-medium text-slate-200 leading-relaxed">
-                  Catálogo 100% disponible sin conexión. Las imágenes y precios se guardan en IndexedDB para acceso inmediato en ruta.
+                  Catálogo conectado en tiempo real. Los cambios se reflejarán instantáneamente en todos los dispositivos. 100% disponible sin conexión.
                 </p>
 
                 <div className="mt-4 pt-3 border-t border-slate-700/50 flex justify-between items-center text-[10px] text-slate-400 font-mono">
-                  <span>Modo Offline</span>
-                  <span className="text-slate-300">Activo</span>
+                  <span>Modo Firebase</span>
+                  <span className="text-emerald-400">Conectado</span>
                 </div>
               </div>
             </aside>
@@ -261,7 +255,7 @@ export default function App() {
       <footer className="bg-slate-900 text-slate-500 py-6 border-t border-slate-800 text-center text-xs mt-12">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 Pinturas Tecnicolor. Todos los derechos reservados.</p>
-          <p className="font-mono text-[10px] text-slate-600">Base de datos local duradera (IndexedDB) • Version 1.0.0</p>
+          <p className="font-mono text-[10px] text-slate-600">Base de datos Cloud & Offline (Firebase) • Version 2.0.0</p>
         </div>
       </footer>
 
