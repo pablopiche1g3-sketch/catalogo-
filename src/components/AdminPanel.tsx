@@ -85,10 +85,13 @@ export default function AdminPanel({ products, onDeleteProduct, onAddProduct }: 
             throw new Error(`El precio en la fila ${index + 2} no es un número válido.`);
           }
 
+          // Use the product code as the deterministic ID so importing the same Excel twice overwrites instead of duplicating
+          const safeId = codigo.toString().trim().replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+
           newProducts.push({
-            id: `imported_${Date.now()}_${index}`,
-            code: codigo.toString(),
-            name: nombre.toString(),
+            id: safeId,
+            code: codigo.toString().trim(),
+            name: nombre.toString().trim(),
             category: "Sin Categoría", // Categoría por defecto ya que el excel no lo tiene
             price: precio,
             description: "",
