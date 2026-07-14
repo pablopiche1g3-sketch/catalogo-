@@ -39,9 +39,9 @@ export default function AdminPanel({ products, onDeleteProduct, onAddProduct }: 
   // Filter products for the admin list
   const filteredProducts = products.filter(p => {
     const term = (searchTerm || '').toLowerCase();
-    return (p.name || '').toLowerCase().includes(term) || 
-           (p.code || '').toLowerCase().includes(term) ||
-           (p.category || '').toLowerCase().includes(term);
+    return String(p.name || '').toLowerCase().includes(term) || 
+           String(p.code || '').toLowerCase().includes(term) ||
+           String(p.category || '').toLowerCase().includes(term);
   });
 
   // Import Excel file to DB

@@ -70,11 +70,11 @@ export default function App() {
     return products.filter(p => {
       const q = (deferredSearchQuery || '').toLowerCase();
       const matchesSearch = 
-        (p.name || '').toLowerCase().includes(q) ||
-        (p.code || '').toLowerCase().includes(q) ||
-        (p.category || '').toLowerCase().includes(q);
+        String(p.name || '').toLowerCase().includes(q) ||
+        String(p.code || '').toLowerCase().includes(q) ||
+        String(p.category || '').toLowerCase().includes(q);
       
-      const matchesCategory = selectedCategory === 'Todos' || (p.category || 'Sin Categoría') === selectedCategory;
+      const matchesCategory = selectedCategory === 'Todos' || String(p.category || 'Sin Categoría') === selectedCategory;
 
       return matchesSearch && matchesCategory;
     });
